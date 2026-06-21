@@ -195,28 +195,35 @@ if "pontuacao" not in st.session_state:
 if "tempo_inicial" not in st.session_state:
     st.session_state.tempo_inicial = time.time()
 
-# --- INTERFACE DE LOGIN COM AS NOVAS CREDENCIAIS ---
+# --- INTERFACE DE LOGIN CONFIGURADA ---
 if not st.session_state.logado:
     st.title("⚡ SYSTEM INTERFACE: ONLINE QUIZ")
-    st.write("➔ Estabelecendo conexão segura... Insira suas credenciais de operador.")
+    st.write("➔ Estabelecendo conexão segura... Autentique o sistema e identifique o operador.")
     
-    usuario = st.text_input("ENTER USERNAME:")
-    senha = st.text_input("ENTER PASSWORD:", type="password")
+    # Campos de Credenciais do Admin
+    usuario_admin = st.text_input("ENTER ADMIN USERNAME:")
+    senha_admin = st.text_input("ENTER ADMIN PASSWORD:", type="password")
+    
+    st.markdown("---")
+    # Campo para o Aluno digitar o próprio nome para o ranking
+    nome_aluno = st.text_input("NOME DO ALUNO (PARA O RANKING):")
     
     if st.button("INITIALIZE CORE SYSTEM"):
-        # Novas credenciais validadas aqui
-        if usuario.strip().upper() == "ADMIN" and senha == "FESTRAITS7":
-            with st.spinner("Sincronizando módulos virtuais..."):
-                time.sleep(1.2)
-            st.session_state.logado = True
-            st.session_state.usuario_nome = usuario.strip()
-            st.session_state.perguntas = carregar_perguntas()
-            st.session_state.tempo_inicial = time.time()
-            st.rerun()
-        elif not usuario.strip():
-            st.error("ERRO: IDENTIFICAÇÃO EM BRANCO.")
+        if usuario_admin.strip().upper() == "ADMIN" and senha_admin == "FESTRAITS7":
+            if nome_aluno.strip():
+                with st.spinner("Sincronizando módulos virtuais..."):
+                    time.sleep(1.2)
+                st.session_state.logado = True
+                st.session_state.usuario_nome = nome_aluno.strip()  # Salva o nome do aluno para a planilha e ranking
+                st.session_state.perguntas = carregar_perguntas()
+                st.session_state.tempo_inicial = time.time()
+                st.rerun()
+            else:
+                st.error("ERRO: POR FAVOR, INSIRA O NOME DO ALUNO PARA CONTINUAR.")
+        elif not usuario_admin.strip():
+            st.error("ERRO: IDENTIFICAÇÃO DO ADMIN EM BRANCO.")
         else:
-            st.error("ERRO: CREDENCIAIS INCORRETAS. ACESSO NEGADO.")
+            st.error("ERRO: CREDENCIAIS DE ADMINISTRADOR INCORRETAS. ACESSO NEGADO.")
 
 # --- EXECUÇÃO DO QUIZ ---
 else:
@@ -229,9 +236,10 @@ else:
         st.subheader(f"Módulo {st.session_state.indice_pergunta + 1} de {len(st.session_state.perguntas)}")
         st.write(f"**>> {q_atual['pergunta']}**")
         
+        # --- CORREÇÃO DO BUG DO TEMPO ---
         tempo_limite = 30
         passado = time.time() - st.session_state.tempo_inicial
-        restante = max(0, int(tempo_limite - pasado))
+        restante = max(0, int(tempo_limite - passado))
         
         st.progress(restante / tempo_limite)
         st.write(f"⏱ Tempo restante para transmissão: `{restante}s`")
@@ -247,7 +255,6 @@ else:
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("PROCESSAR VETOR DE RESPOSTA"):
-            # Avança silenciosamente sem dar spoiler na tela
             if resposta == q_atual["correta"]:
                 st.session_state.pontuacao += 1
                 
@@ -255,10 +262,10 @@ else:
             st.session_state.tempo_inicial = time.time()
             st.rerun()
             
-        time.sleep(1)
+        time.sleep(0.5)
         st.rerun()
         
-    # --- TELA FINAL (MENSAGEM ÚNICA COM O RESULTADO) ---
+    # --- TELA FINAL (RANKING E RESULTADOS) ---
     else:
         st.title("🎉 MISSÃO CONCLUÍDA 🎉")
         st.write("Todas as etapas foram descriptografadas com sucesso.")
@@ -285,4 +292,5 @@ else:
             st.session_state.pontuacao = 0
             st.session_state.perguntas = carregar_perguntas()
             st.session_state.tempo_inicial = time.time()
+            st.session_state.logado = False  # Volta para a tela de login para o próximo aluno colocar o nome
             st.rerun()
