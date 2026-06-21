@@ -28,7 +28,7 @@ st.markdown("""
         content: " ";
         display: block;
         position: fixed;
-        top: 0; left: 0; bottom: 0; right: 0;
+ top: 0; left: 0; bottom: 0; right: 0;
         background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
         z-index: 99999;
         opacity: 0.4;
@@ -107,16 +107,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Conexão com o Google Sheets para o Relatório Geral
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception:
     conn = None
 
-# O CÓDIGO AGORA LÊ EXCLUSIVAMENTE 'pergunta.docx'
+# FUNÇÃO ADAPTADA: Varre caminhos alternativos para driblar o erro de sincronização de branch
 def carregar_perguntas():
-    nome_arquivo = "pergunta.docx"
-    if not os.path.exists(nome_arquivo):
+    caminhos_possiveis = ["pergunta.docx", "perguntas.docx", "../pergunta.docx", "./pergunta.docx"]
+    nome_arquivo = None
+    
+    for caminho in caminhos_possiveis:
+        if os.path.exists(caminho):
+            nome_arquivo = caminho
+            break
+            
+    if not nome_arquivo:
         return []
         
     doc = Document(nome_arquivo)
@@ -151,7 +157,6 @@ def buscar_ranking():
             pass
     return pd.DataFrame()
 
-# Força o recarregamento caso a memória limpe ou venha vazia
 if "perguntas" not in st.session_state or len(st.session_state.perguntas) == 0:
     st.session_state.perguntas = carregar_perguntas()
 if "logado" not in st.session_state:
@@ -189,8 +194,8 @@ else:
     if not st.session_state.perguntas:
         st.title("📟 TERMINAL OPERACIONAL")
         st.error("🚨 ERRO CRÍTICO: Não foi possível ler o arquivo 'pergunta.docx'.")
-        st.write("Confirme se o arquivo está na raiz do seu GitHub com o nome exato.")
-        if st.button("TENTAR NOVAMENTE"):
+        st.write("Dica: Desative a tradução automática do seu navegador nesta página para sincronizar o GitHub.")
+        if st.button("FORÇAR RECARREGAMENTO DE TRANSMISSÃO"):
             st.session_state.perguntas = carregar_perguntas()
             st.rerun()
             
@@ -203,7 +208,6 @@ else:
         st.subheader(f"Módulo {st.session_state.indice_pergunta + 1} de {len(st.session_state.perguntas)}")
         st.write(f"**>> {q_atual['pergunta']}**")
         
-        # Sistema de contagem regressiva por ciclo
         tempo_limite = 30
         passado = time.time() - st.session_state.tempo_inicial
         restante = max(0, int(tempo_limite - passado))
