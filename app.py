@@ -140,7 +140,7 @@ def carregar_perguntas():
         except Exception:
             pass
 
-    # SE TUDO FALHAR: Gera perguntas padrão para nunca dar erro de tela vazia
+    # SE TUDO FALHAR: Gera perguntas padrão automáticas para o sistema nunca quebrar
     if not perguntas:
         perguntas = [
             {
@@ -211,7 +211,7 @@ else:
         
         tempo_limite = 30
         passado = time.time() - st.session_state.tempo_inicial
-        restante = max(0, int(tempo_limite - passados))
+        restante = max(0, int(tempo_limite - passado))
         
         st.progress(restante / tempo_limite)
         st.write(f"⏱ Tempo restante para transmissão: `{restante}s`")
