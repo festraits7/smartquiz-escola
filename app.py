@@ -113,7 +113,7 @@ try:
 except Exception:
     conn = None
 
-# CORREÇÃO CRÍTICA: Ajustado para buscar 'pergunta.docx' (nome exato no seu GitHub)
+# O CÓDIGO AGORA LÊ EXCLUSIVAMENTE 'pergunta.docx'
 def carregar_perguntas():
     nome_arquivo = "pergunta.docx"
     if not os.path.exists(nome_arquivo):
@@ -124,8 +124,8 @@ def carregar_perguntas():
     
     for paragrafo in doc.paragraphs:
         texto = paragrafo.text.strip()
-        if texto and " - " in texto:
-            partes = texto.split(" - ")
+        if texto and "-" in texto:
+            partes = texto.split("-")
             if len(partes) >= 3:
                 pergunta = partes[0].strip()
                 opcoes = [o.strip() for o in partes[1:-1]]
@@ -178,6 +178,7 @@ if not st.session_state.logado:
                 time.sleep(1.2)
             st.session_state.logado = True
             st.session_state.usuario_nome = usuario.strip()
+            st.session_state.perguntas = carregar_perguntas()
             st.session_state.tempo_inicial = time.time()
             st.rerun()
         else:
@@ -185,7 +186,15 @@ if not st.session_state.logado:
 
 # --- EXECUÇÃO DO QUIZ ---
 else:
-    if st.session_state.indice_pergunta < len(st.session_state.perguntas):
+    if not st.session_state.perguntas:
+        st.title("📟 TERMINAL OPERACIONAL")
+        st.error("🚨 ERRO CRÍTICO: Não foi possível ler o arquivo 'pergunta.docx'.")
+        st.write("Confirme se o arquivo está na raiz do seu GitHub com o nome exato.")
+        if st.button("TENTAR NOVAMENTE"):
+            st.session_state.perguntas = carregar_perguntas()
+            st.rerun()
+            
+    elif st.session_state.indice_pergunta < len(st.session_state.perguntas):
         st.title("📟 TERMINAL OPERACIONAL")
         st.write(f"Operador Ativo: `[ {st.session_state.usuario_nome} ]` ➔ Link Estável.")
         st.markdown("---")
