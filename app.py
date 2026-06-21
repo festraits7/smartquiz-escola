@@ -174,18 +174,20 @@ def carregar_perguntas():
 def buscar_ranking():
     if conn:
         try:
-            df = conn.read(spreadsheet=st.secrets.get("connections", {}).get("gsheets", {}).get("spreadsheet"), ttl="5s")
-            if not df.empty:
+            planilha_url = st.secrets.get("connections", {}).get("gsheets", {}).get("spreadsheet")
+            df = conn.read(spreadsheet=planilha_url, ttl="5s")
+            if df is not None and not df.empty:
                 return df.sort_values(by="Pontuacao", ascending=False).head(5)
         except Exception:
             pass
     return pd.DataFrame()
 
-# Inicialização dos estados do sistema
+# --- CONTROLE DE ESTADOS DO FLUXO DO SISTEMA ---
+if "tela_atual" not in st.session_state:
+    st.session_state.tela_atual = "professor_login" # Opções: 'professor_login', 'aluno_identificacao', 'quiz'
+
 if "perguntas" not in st.session_state or len(st.session_state.perguntas) == 0:
     st.session_state.perguntas = carregar_perguntas()
-if "logado" not in st.session_state:
-    st.session_state.logado = False
 if "usuario_nome" not in st.session_state:
     st.session_state.usuario_nome = ""
 if "indice_pergunta" not in st.session_state:
@@ -195,38 +197,53 @@ if "pontuacao" not in st.session_state:
 if "tempo_inicial" not in st.session_state:
     st.session_state.tempo_inicial = time.time()
 
-# --- INTERFACE DE LOGIN CONFIGURADA ---
-if not st.session_state.logado:
-    st.title("⚡ SYSTEM INTERFACE: ONLINE QUIZ")
-    st.write("➔ Estabelecendo conexão segura... Autentique o sistema e identifique o operador.")
+
+# =====================================================================
+# TELA 1: AUTENTICAÇÃO DO PROFESSOR (Liberação da Máquina)
+# =====================================================================
+if st.session_state.tela_atual == "professor_login":
+    st.title("⚡ MASTER CONTROL: LIBERAÇÃO DO TERMINAL")
+    st.write("➔ Acesso restrito ao corpo docente. Insira as credenciais para preparar o módulo.")
     
-    # Campos de Credenciais do Admin
     usuario_admin = st.text_input("ENTER ADMIN USERNAME:")
     senha_admin = st.text_input("ENTER ADMIN PASSWORD:", type="password")
     
-    st.markdown("---")
-    # Campo para o Aluno digitar o próprio nome para o ranking
-    nome_aluno = st.text_input("NOME DO ALUNO (PARA O RANKING):")
-    
-    if st.button("INITIALIZE CORE SYSTEM"):
+    if st.button("DESBLOQUEAR TERMINAL PARA O ALUNO"):
         if usuario_admin.strip().upper() == "ADMIN" and senha_admin == "FESTRAITS7":
-            if nome_aluno.strip():
-                with st.spinner("Sincronizando módulos virtuais..."):
-                    time.sleep(1.2)
-                st.session_state.logado = True
-                st.session_state.usuario_nome = nome_aluno.strip()  # Salva o nome do aluno para a planilha e ranking
-                st.session_state.perguntas = carregar_perguntas()
-                st.session_state.tempo_inicial = time.time()
-                st.rerun()
-            else:
-                st.error("ERRO: POR FAVOR, INSIRA O NOME DO ALUNO PARA CONTINUAR.")
+            with st.spinner("Desbloqueando canais de transmissão..."):
+                time.sleep(1)
+            st.session_state.tela_atual = "aluno_identificacao"
+            st.rerun()
         elif not usuario_admin.strip():
             st.error("ERRO: IDENTIFICAÇÃO DO ADMIN EM BRANCO.")
         else:
-            st.error("ERRO: CREDENCIAIS DE ADMINISTRADOR INCORRETAS. ACESSO NEGADO.")
+            st.error("ERRO: CREDENCIAIS INCORRETAS. ACESSO NEGADO.")
 
-# --- EXECUÇÃO DO QUIZ ---
-else:
+# =====================================================================
+# TELA 2: IDENTIFICAÇÃO DO ALUNO (O professor sai, o aluno assume)
+# =====================================================================
+elif st.session_state.tela_atual == "aluno_identificacao":
+    st.title("📟 RECONHECIMENTO DE OPERADOR")
+    st.write("➔ Terminal liberado pelo instrutor. Identifique-se para iniciar os testes.")
+    
+    nome_aluno = st.text_input("INSIRA SEU NOME COMPLETO:")
+    
+    if st.button("INICIAR PROTOCOLO QUIZ"):
+        if nome_aluno.strip():
+            st.session_state.usuario_nome = nome_aluno.strip()
+            st.session_state.perguntas = carregar_perguntas()
+            st.session_state.indice_pergunta = 0
+            st.session_state.pontuacao = 0
+            st.session_state.tempo_inicial = time.time()
+            st.session_state.tela_atual = "quiz"
+            st.rerun()
+        else:
+            st.error("ERRO: IDENTIFICAÇÃO OBRIGATÓRIA. DIGITE SEU NOME.")
+
+# =====================================================================
+# TELA 3: EXECUÇÃO DO QUIZ ATIVO
+# =====================================================================
+elif st.session_state.tela_atual == "quiz":
     if st.session_state.indice_pergunta < len(st.session_state.perguntas):
         st.title("📟 TERMINAL OPERACIONAL")
         st.write(f"Operador Ativo: `[ {st.session_state.usuario_nome} ]` ➔ Link Estável.")
@@ -236,24 +253,16 @@ else:
         st.subheader(f"Módulo {st.session_state.indice_pergunta + 1} de {len(st.session_state.perguntas)}")
         st.write(f"**>> {q_atual['pergunta']}**")
         
-        # --- CORREÇÃO DO BUG DO TEMPO ---
+        # Container exclusivo do timer para impedir travamentos de cliques
+        timer_container = st.empty()
+        
         tempo_limite = 30
         passado = time.time() - st.session_state.tempo_inicial
         restante = max(0, int(tempo_limite - passado))
         
-        st.progress(restante / tempo_limite)
-        st.write(f"⏱ Tempo restante para transmissão: `{restante}s`")
-        
-        if restante <= 0:
-            st.warning("🚨 SENSOR ESTOUROU: Tempo esgotado para este módulo!")
-            time.sleep(1)
-            st.session_state.indice_pergunta += 1
-            st.session_state.tempo_inicial = time.time()
-            st.rerun()
-            
         resposta = st.radio("Selecione o vetor de dados:", q_atual["opcoes"], key=f"r_{st.session_state.indice_pergunta}")
-        
         st.markdown("<br>", unsafe_allow_html=True)
+        
         if st.button("PROCESSAR VETOR DE RESPOSTA"):
             if resposta == q_atual["correta"]:
                 st.session_state.pontuacao += 1
@@ -261,11 +270,26 @@ else:
             st.session_state.indice_pergunta += 1
             st.session_state.tempo_inicial = time.time()
             st.rerun()
+
+        # Contador dinâmico da barra de progresso
+        while restante > 0:
+            passado = time.time() - st.session_state.tempo_inicial
+            restante = max(0, int(tempo_limite - passado))
             
-        time.sleep(0.5)
-        st.rerun()
-        
-    # --- TELA FINAL (RANKING E RESULTADOS) ---
+            with timer_container.container():
+                st.progress(restante / tempo_limite)
+                st.write(f"⏱ Tempo restante para transmissão: `{restante}s`")
+            
+            if restante <= 0:
+                st.warning("🚨 SENSOR ESTOUROU: Tempo esgotado para este módulo!")
+                time.sleep(1)
+                st.session_state.indice_pergunta += 1
+                st.session_state.tempo_inicial = time.time()
+                st.rerun()
+                
+            time.sleep(0.1)
+
+    # --- TELA FINAL (RANKING E GRAVAÇÃO NO SHEETS) ---
     else:
         st.title("🎉 MISSÃO CONCLUÍDA 🎉")
         st.write("Todas as etapas foram descriptografadas com sucesso.")
@@ -273,16 +297,21 @@ else:
         
         if conn and st.session_state.usuario_nome:
             try:
-                dados = pd.DataFrame([{"Aluno": st.session_state.usuario_nome, "Pontuacao": st.session_state.pontuacao, "Total": len(st.session_state.perguntas)}])
-                conn.create(data=dados)
+                planilha_url = st.secrets.get("connections", {}).get("gsheets", {}).get("spreadsheet")
+                df_atual = conn.read(spreadsheet=planilha_url)
+                
+                novo_registro = pd.DataFrame([{"Aluno": st.session_state.usuario_nome, "Pontuacao": st.session_state.pontuacao, "Total": len(st.session_state.perguntas)}])
+                df_final = pd.concat([df_atual, novo_registro], ignore_index=True)
+                
+                conn.update(spreadsheet=planilha_url, data=df_final)
                 st.success("📊 Registro enviado para a central do professor!")
-            except:
-                pass
+            except Exception:
+                st.warning("⚠️ Erro ao salvar dados no Google Sheets.")
                 
         st.markdown("---")
         st.subheader("🏆 TOP 5 OPERADORES (RANKING)")
         df_r = buscar_ranking()
-        if not df_r.empty:
+        if df_r is not None and not df_r.empty:
             st.dataframe(df_r, use_container_width=True)
         else:
             st.write("*Carregando dados globais da tabela do professor...*")
@@ -292,5 +321,5 @@ else:
             st.session_state.pontuacao = 0
             st.session_state.perguntas = carregar_perguntas()
             st.session_state.tempo_inicial = time.time()
-            st.session_state.logado = False  # Volta para a tela de login para o próximo aluno colocar o nome
+            st.session_state.tela_atual = "professor_login" # Bloqueia novamente exigindo nova autorização do docente
             st.rerun()
