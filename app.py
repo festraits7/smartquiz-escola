@@ -112,7 +112,6 @@ try:
 except Exception:
     conn = None
 
-# --- LEITOR COM O SEU PADRÃO EXATO DE BLOCOS ---
 def carregar_perguntas():
     nome_arquivo = "pergunta.docx"
     perguntas = []
@@ -120,10 +119,8 @@ def carregar_perguntas():
     if os.path.exists(nome_arquivo):
         try:
             doc = Document(nome_arquivo)
-            # Pega o texto de todas as linhas que não estão totalmente em branco
             linhas = [p.text.strip() for p in doc.paragraphs]
             
-            # Limpa linhas vazias consecutivas para isolar os blocos de forma correta
             linhas_limpas = []
             ultima_vazia = False
             for l in linhas:
@@ -135,7 +132,6 @@ def carregar_perguntas():
                         linhas_limpas.append("")
                         ultima_vazia = True
             
-            # Agrupa as linhas em blocos usando a linha de espaço como divisor
             blocos = []
             bloco_atual = []
             for l in linhas_limpas:
@@ -148,7 +144,6 @@ def carregar_perguntas():
             if bloco_atual:
                 blocos.append(bloco_atual)
 
-            # Processa cada bloco (cada bloco precisa ter pelo menos 6 linhas: pergunta, 4 opções, resposta)
             for b in blocos:
                 if len(b) >= 6:
                     pergunta = b[0]
@@ -166,7 +161,6 @@ def carregar_perguntas():
         except Exception:
             pass
 
-    # Só ativa as de teste se o arquivo literalmente sumir do GitHub
     if not perguntas:
         perguntas = [
             {
@@ -187,6 +181,7 @@ def buscar_ranking():
             pass
     return pd.DataFrame()
 
+# Inicialização dos estados do sistema
 if "perguntas" not in st.session_state or len(st.session_state.perguntas) == 0:
     st.session_state.perguntas = carregar_perguntas()
 if "logado" not in st.session_state:
@@ -200,15 +195,17 @@ if "pontuacao" not in st.session_state:
 if "tempo_inicial" not in st.session_state:
     st.session_state.tempo_inicial = time.time()
 
-# --- INTERFACE DE LOGIN ---
+# --- INTERFACE DE LOGIN COM AS NOVAS CREDENCIAIS ---
 if not st.session_state.logado:
     st.title("⚡ SYSTEM INTERFACE: ONLINE QUIZ")
-    st.write("➔ Estabelecendo conexão segura... Insira seu ID de operador.")
+    st.write("➔ Estabelecendo conexão segura... Insira suas credenciais de operador.")
     
     usuario = st.text_input("ENTER USERNAME:")
+    senha = st.text_input("ENTER PASSWORD:", type="password")
     
     if st.button("INITIALIZE CORE SYSTEM"):
-        if usuario.strip():
+        # Novas credenciais validadas aqui
+        if usuario.strip().upper() == "ADMIN" and senha == "FESTRAITS7":
             with st.spinner("Sincronizando módulos virtuais..."):
                 time.sleep(1.2)
             st.session_state.logado = True
@@ -216,8 +213,10 @@ if not st.session_state.logado:
             st.session_state.perguntas = carregar_perguntas()
             st.session_state.tempo_inicial = time.time()
             st.rerun()
-        else:
+        elif not usuario.strip():
             st.error("ERRO: IDENTIFICAÇÃO EM BRANCO.")
+        else:
+            st.error("ERRO: CREDENCIAIS INCORRETAS. ACESSO NEGADO.")
 
 # --- EXECUÇÃO DO QUIZ ---
 else:
@@ -232,14 +231,14 @@ else:
         
         tempo_limite = 30
         passado = time.time() - st.session_state.tempo_inicial
-        restante = max(0, int(tempo_limite - passado))
+        restante = max(0, int(tempo_limite - pasado))
         
         st.progress(restante / tempo_limite)
         st.write(f"⏱ Tempo restante para transmissão: `{restante}s`")
         
         if restante <= 0:
-            st.error("🚨 SENSOR ESTOUROU: Tempo esgotado!")
-            time.sleep(1.5)
+            st.warning("🚨 SENSOR ESTOUROU: Tempo esgotado para este módulo!")
+            time.sleep(1)
             st.session_state.indice_pergunta += 1
             st.session_state.tempo_inicial = time.time()
             st.rerun()
@@ -248,13 +247,10 @@ else:
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("PROCESSAR VETOR DE RESPOSTA"):
+            # Avança silenciosamente sem dar spoiler na tela
             if resposta == q_atual["correta"]:
                 st.session_state.pontuacao += 1
-                st.success("✔ COMPILADO: Bit correspondente validado.")
-            else:
-                st.error(f"❌ ANOMALIA: Incorreto. Setor esperado era: {q_atual['correta']}")
                 
-            time.sleep(1.5)
             st.session_state.indice_pergunta += 1
             st.session_state.tempo_inicial = time.time()
             st.rerun()
@@ -262,6 +258,7 @@ else:
         time.sleep(1)
         st.rerun()
         
+    # --- TELA FINAL (MENSAGEM ÚNICA COM O RESULTADO) ---
     else:
         st.title("🎉 MISSÃO CONCLUÍDA 🎉")
         st.write("Todas as etapas foram descriptografadas com sucesso.")
