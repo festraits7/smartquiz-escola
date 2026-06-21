@@ -1,0 +1,4 @@
+Plaintext
+python-docx
+st-gsheets-connection
+pandas
