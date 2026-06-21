@@ -209,7 +209,8 @@ if st.session_state.tela_atual == "professor_login":
     senha_admin = st.text_input("ENTER ADMIN PASSWORD:", type="password")
     
     if st.button("DESBLOQUEAR TERMINAL PARA O ALUNO"):
-        if usuario_admin.strip().upper() == "ADMIN" and senha_admin == "FESTRAITS7":
+        # .strip().upper() faz com que tanto faz se escrever admin minúsculo ou maiúsculo
+        if usuario_admin.strip().upper() == "ADMIN" and senha_admin.strip().upper() == "FESTRAITS7":
             with st.spinner("Desbloqueando canais de transmissão..."):
                 time.sleep(1)
             st.session_state.tela_atual = "aluno_identificacao"
