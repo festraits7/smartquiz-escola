@@ -9,7 +9,7 @@ from streamlit_gsheets import GSheetsConnection
 # Configuração da página para o tema Dark/Cyberpunk
 st.set_page_config(page_title="SmartQuiz Escola", page_icon="⚡", layout="centered")
 
-# --- AS 88 LINHAS EXATAS DE ESTILIZAÇÃO CSS HACKER E EFEITOS NEON ---
+# --- ESTILIZAÇÃO CSS HACKER E EFEITOS NEON ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
@@ -112,46 +112,67 @@ try:
 except Exception:
     conn = None
 
+# --- LEITOR COM O SEU PADRÃO EXATO DE BLOCOS ---
 def carregar_perguntas():
     nome_arquivo = "pergunta.docx"
     perguntas = []
     
-    # Se o arquivo existir, tenta ler
     if os.path.exists(nome_arquivo):
         try:
             doc = Document(nome_arquivo)
-            for paragrafo in doc.paragraphs:
-                texto = paragrafo.text.strip()
-                if texto and "-" in texto:
-                    partes = texto.split("-")
-                    if len(partes) >= 3:
-                        pergunta = partes[0].strip()
-                        opcoes = [o.strip() for o in partes[1:-1]]
-                        correta = partes[-1].strip()
-                        
-                        opcoes_misturadas = opcoes.copy()
-                        random.shuffle(opcoes_misturadas)
-                        
-                        perguntas.append({
-                            "pergunta": pergunta,
-                            "opcoes": opcoes_misturadas,
-                            "correta": correta
-                        })
+            # Pega o texto de todas as linhas que não estão totalmente em branco
+            linhas = [p.text.strip() for p in doc.paragraphs]
+            
+            # Limpa linhas vazias consecutivas para isolar os blocos de forma correta
+            linhas_limpas = []
+            ultima_vazia = False
+            for l in linhas:
+                if l:
+                    linhas_limpas.append(l)
+                    ultima_vazia = False
+                else:
+                    if not ultima_vazia:
+                        linhas_limpas.append("")
+                        ultima_vazia = True
+            
+            # Agrupa as linhas em blocos usando a linha de espaço como divisor
+            blocos = []
+            bloco_atual = []
+            for l in linhas_limpas:
+                if l == "":
+                    if bloco_atual:
+                        blocos.append(bloco_atual)
+                        bloco_atual = []
+                else:
+                    bloco_atual.append(l)
+            if bloco_atual:
+                blocos.append(bloco_atual)
+
+            # Processa cada bloco (cada bloco precisa ter pelo menos 6 linhas: pergunta, 4 opções, resposta)
+            for b in blocos:
+                if len(b) >= 6:
+                    pergunta = b[0]
+                    opcoes = [b[1], b[2], b[3], b[4]]
+                    correta = b[5]
+                    
+                    opcoes_misturadas = opcoes.copy()
+                    random.shuffle(opcoes_misturadas)
+                    
+                    perguntas.append({
+                        "pergunta": pergunta,
+                        "opcoes": opcoes_misturadas,
+                        "correta": correta
+                    })
         except Exception:
             pass
 
-    # SE TUDO FALHAR: Gera perguntas padrão automáticas para o sistema nunca quebrar
+    # Só ativa as de teste se o arquivo literalmente sumir do GitHub
     if not perguntas:
         perguntas = [
             {
                 "pergunta": "Qual a sintaxe correta para exibir texto em Python?",
                 "opcoes": ["print('Olá')", "echo 'Olá'", "system.out.print('Olá')", "console.log('Olá')"],
                 "correta": "print('Olá')"
-            },
-            {
-                "pergunta": "Qual tag HTML é usada para criar uma quebra de linha?",
-                "opcoes": ["<br>", "<lb>", "<break>", "<p>"],
-                "correta": "<br>"
             }
         ]
     return perguntas
